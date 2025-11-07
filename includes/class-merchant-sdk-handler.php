@@ -5,9 +5,9 @@
 	}
 
 	/**
-	 * Sends API requests to CryptoChill.
+	 * Sends API requests to Uniwire.
 	 */
-	class Cryptochill_SDK_Handler {
+	class Uniwire_SDK_Handler {
 
 		/** @var string/array Log variable function. */
 		public static $log;
@@ -26,7 +26,7 @@
 		}
 
 
-		/** @var string CryptoChill API version. */
+		/** @var string Uniwire API version. */
 		public static $api_version = 'v1';
 
 
@@ -40,7 +40,7 @@
 		 * @return array
 		 */
 		public static function send_request($endpoint, $payload = array(), $method = 'GET'){
-			self::log('CryptoChill SDK Request Args for ' . $endpoint . ': ' . print_r($payload, true));
+			self::log('Uniwire SDK Request Args for ' . $endpoint . ': ' . print_r($payload, true));
 
 
 			if(!defined( 'MERCHANT_SITE_URL' )){

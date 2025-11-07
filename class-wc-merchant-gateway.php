@@ -1,10 +1,10 @@
 <?php
 	/**
-	 * CryptoChill Payment Gateway.
+	 * Uniwire Payment Gateway.
 	 *
-	 * Provides a CryptoChill Payment Gateway.
+	 * Provides a Uniwire Payment Gateway.
 	 *
-	 * @class       WC_Cryptochill_Gateway
+	 * @class       WC_Uniwire_Gateway
 	 * @extends     WC_Payment_Gateway
 	 * @since       0.0.1
 	 * @package     WooCommerce/Classes/Payment
@@ -16,9 +16,9 @@
 	}
 
 	/**
-	 * WC_Cryptochill_Gateway Class.
+	 * WC_Uniwire_Gateway Class.
 	 */
-	class WC_Cryptochill_Gateway extends WC_Payment_Gateway {
+	class WC_Uniwire_Gateway extends WC_Payment_Gateway {
 
 		/** @var bool Whether or not logging is enabled */
 		public static $log_enabled = false;
@@ -61,10 +61,10 @@
 		{
 
 			if (!defined('MERCHANT_SITE_URL')) {
-				define('MERCHANT_SITE_URL', "https://cryptochill.com/");
+				define('MERCHANT_SITE_URL', "https://uniwire.com/");
 			}
 
-			$this->id = 'cryptochill';
+			$this->id = 'wc_uniwire_gateway';
 
 //			NOTE - This is a temporary fix to allow the plugin to be backward compatible with the old plugin
 //			if ($this->id == 'cryptochill') {
@@ -72,8 +72,8 @@
 //			}
 
 			$this->has_fields = false;
-			$this->order_button_text = __('Proceed to payment', 'cryptochill');
-			$this->method_title = __('CryptoChill Gateway', 'cryptochill');
+			$this->order_button_text = __('Proceed to payment', 'wc_uniwire_gateway');
+			$this->method_title = __('Uniwire Gateway', 'wc_uniwire_gateway');
 
 			// Timeout after 3 days. Default to 3 days as pending Bitcoin txns
 			// are usually forgotten after 2-3 days.
@@ -105,7 +105,7 @@
 				$this->merchant_site_url = MERCHANT_SITE_URL;
 			}
 
-			$this->method_description = '<p>' . __('A payment gateway that sends your customers to CryptoChill Gateway to pay with cryptocurrency.', 'cryptochill') . '</p><p>' . sprintf(__('If you do not currently have a CryptoChill account, you can set one up here: <a target="_blank" href="%s">%s</a>', 'cryptochill'), $this->merchant_site_url, $this->merchant_site_url);
+			$this->method_description = '<p>' . __('A payment gateway that sends your customers to Uniwire Gateway to pay with cryptocurrency.', 'wc_uniwire_gateway') . '</p><p>' . sprintf(__('If you do not currently have a Uniwire account, you can set one up here: <a target="_blank" href="%s">%s</a>', 'wc_uniwire_gateway'), $this->merchant_site_url, $this->merchant_site_url);
 
 
 			self::$log_enabled = $this->debug;
@@ -119,9 +119,9 @@
 
 			add_action('woocommerce_api_' . $this->id, [$this, 'handle_webhook']);
 
-			add_action('wp_enqueue_scripts', [$this, 'cryptochill_payment_scripts']);
+			add_action('wp_enqueue_scripts', [$this, 'wc_uniwire_gateway_payment_scripts']);
 
-			add_action('woocommerce_receipt_' . $this->id, [&$this, 'cryptochill_payment_page'], 10, 1);
+			add_action('woocommerce_receipt_' . $this->id, [&$this, 'wc_uniwire_gateway_payment_page'], 10, 1);
 		}
 
 		/**
@@ -133,14 +133,14 @@
 				'enabled'           => [
 					'title'   => __('Enable/Disable', 'woocommerce'),
 					'type'    => 'checkbox',
-					'label'   => __('Enable CryptoChill Payment', 'cryptochill'),
+					'label'   => __('Enable Uniwire Payment', 'wc_uniwire_gateway'),
 					'default' => 'yes',
 				],
 				'title'             => [
 					'title'       => __('Title', 'woocommerce'),
 					'type'        => 'text',
 					'description' => __('This controls the title which the user sees during checkout.', 'woocommerce'),
-					'default'     => __('Bitcoin and other cryptocurrencies', 'cryptochill'),
+					'default'     => __('Bitcoin and other cryptocurrencies', 'wc_uniwire_gateway'),
 					'desc_tip'    => true,
 				],
 				'description'       => [
@@ -148,75 +148,75 @@
 					'type'        => 'text',
 					'desc_tip'    => true,
 					'description' => __('This controls the description which the user sees during checkout.', 'woocommerce'),
-					'default'     => __('Pay with Bitcoin or other cryptocurrencies.', 'cryptochill'),
+					'default'     => __('Pay with Bitcoin or other cryptocurrencies.', 'wc_uniwire_gateway'),
 				],
 				'merchant_site_url' => [
-					'title'   => __('CryptoChill URL', 'cryptochill'),
+					'title'   => __('Uniwire URL', 'wc_uniwire_gateway'),
 					'type'    => 'text',
 					'default' => MERCHANT_SITE_URL,
-					// 'description' => sprintf(__('CryptoChill URL', 'cryptochill')),
+					// 'description' => sprintf(__('Uniwire URL', 'wc_uniwire_gateway')),
 				],
 				'account_id'        => [
-					'title'       => __('Account ID', 'cryptochill'),
+					'title'       => __('Account ID', 'wc_uniwire_gateway'),
 					'type'        => 'text',
 					'default'     => '',
-					'description' => sprintf(__('To view your Account ID go to the CryptoChill Settings page.', 'cryptochill')),
+					'description' => sprintf(__('To view your Account ID go to the Uniwire Settings page.', 'wc_uniwire_gateway')),
 				],
 				'profile_id'        => [
-					'title'       => __('Profile ID', 'cryptochill'),
+					'title'       => __('Profile ID', 'wc_uniwire_gateway'),
 					'type'        => 'text',
 					'default'     => '',
-					'description' => sprintf(__('To view your Profile ID within the CryptoChill Profiles page.', 'cryptochill')),
+					'description' => sprintf(__('To view your Profile ID within the Uniwire Profiles page.', 'wc_uniwire_gateway')),
 				],
 				'callback_token'    => [
-					'title'       => __('API callback token', 'cryptochill'),
+					'title'       => __('API callback token', 'wc_uniwire_gateway'),
 					'type'        => 'text',
 					'description' =>
 
-						__('Using webhooks allows CryptoChill to send payment confirmation messages to the website. To fill this out:', 'cryptochill')
+						__('Using webhooks allows Uniwire to send payment confirmation messages to the website. To fill this out:', 'wc_uniwire_gateway')
 
 						. '<br /><br />' .
 
-						__('1. In your CryptoChill Profiles click on your Profile, and click \'Edit Profile\' button', 'cryptochill')
+						__('1. In your Uniwire Profiles click on your Profile, and click \'Edit Profile\' button', 'wc_uniwire_gateway')
 
 						. '<br />' .
 
-						sprintf(__('2. Click on \'Callback URL\' input and paste the following URL: %s', 'cryptochill'), add_query_arg('wc-api', 'cryptochill', home_url('/')))
+						sprintf(__('2. Click on \'Callback URL\' input and paste the following URL: %s', 'wc_uniwire_gateway'), add_query_arg('wc-api', 'wc_uniwire_gateway', home_url('/')))
 
 						. '<br />' .
 
-						__('3. Go to Settings -> Api Keys and scroll to \'API Callbacks\' section', 'cryptochill')
+						__('3. Go to Settings -> Api Keys and scroll to \'API Callbacks\' section', 'wc_uniwire_gateway')
 
 						. '<br />' .
 
-						__('4. Click "Reveal" and copy "Callback Token" paste into the box above.', 'cryptochill'),
+						__('4. Click "Reveal" and copy "Callback Token" paste into the box above.', 'wc_uniwire_gateway'),
 
 				],
 				'placement'         => [
-					'title'   => __('Payment view placement', 'cryptochill'),
+					'title'   => __('Payment view placement', 'wc_uniwire_gateway'),
 					'type'    => 'select',
 					'options' => [
-						'modal'  => __('Modal', 'cryptochill'),
-						'inline' => __('Inline', 'cryptochill'),
+						'modal'  => __('Modal', 'wc_uniwire_gateway'),
+						'inline' => __('Inline', 'wc_uniwire_gateway'),
 					],
-					'label'   => __('How to display payment window', 'cryptochill'),
+					'label'   => __('How to display payment window', 'wc_uniwire_gateway'),
 					'default' => 'modal',
 				],
 //				'merchant_payment_methods' => [
-//					'title'   => __('Accepted payment methods', 'cryptochill'),
+//					'title'   => __('Accepted payment methods', 'wc_uniwire_gateway'),
 //					'type'    => 'multiselect',
 //					'options' => [
-//						'bitcoin'  => __('Bitcoin', 'cryptochill'),
-//						'litecoin' => __('Litecoin', 'cryptochill'),
-//						'ethereum' => __('Ethereum', 'cryptochill'),
-//						'usdt'     => __('Tether', 'cryptochill'),
+//						'bitcoin'  => __('Bitcoin', 'wc_uniwire_gateway'),
+//						'litecoin' => __('Litecoin', 'wc_uniwire_gateway'),
+//						'ethereum' => __('Ethereum', 'wc_uniwire_gateway'),
+//						'usdt'     => __('Tether', 'wc_uniwire_gateway'),
 //					],
 //					'default' => ['bitcoin', 'litecoin'],
 //				],
 //				'show_icons'        => [
-//					'title'   => __('Show icons', 'cryptochill'),
+//					'title'   => __('Show icons', 'wc_uniwire_gateway'),
 //					'type'    => 'checkbox',
-//					'label'   => __('Display currency icons on checkout page.', 'cryptochill'),
+//					'label'   => __('Display currency icons on checkout page.', 'wc_uniwire_gateway'),
 //					'default' => 'yes',
 //				],
 				'debug'             => [
@@ -224,7 +224,7 @@
 					'type'        => 'checkbox',
 					'label'       => __('Enable logging', 'woocommerce'),
 					'default'     => 'no',
-					'description' => sprintf(__('Log CryptoChill API events inside %s', 'cryptochill'), '<code>' . WC_Log_Handler_File::get_log_file_path('cryptochill') . '</code>'),
+					'description' => sprintf(__('Log Uniwire API events inside %s', 'wc_uniwire_gateway'), '<code>' . WC_Log_Handler_File::get_log_file_path('wc_uniwire_gateway') . '</code>'),
 				],
 			];
 		}
@@ -244,7 +244,7 @@
 			$post_data = $this->get_post_data();
 
 //			die($this->get_option_key());
-//			woocommerce_cryptochill_settings
+//			woocommerce_wc_uniwire_gateway_settings
 
 			$this->enabled = $post_data['woocommerce_' . $this->id . '_enabled'];
 			$this->account_id = $post_data['woocommerce_' . $this->id . '_account_id'];
@@ -303,14 +303,14 @@
 				$path = realpath($image_path . '/' . $m . '.png');
 				if ($path && dirname($path) === $image_path && is_file($path)) {
 					$url = WC_HTTPS::force_https_url(plugins_url('/assets/images/' . $m . '.png', __FILE__));
-					$icon_html .= '<img width="26" src="' . esc_attr($url) . '" alt="' . esc_attr__($m, 'cryptochill') . '" />';
+					$icon_html .= '<img width="26" src="' . esc_attr($url) . '" alt="' . esc_attr__($m, 'wc_uniwire_gateway') . '" />';
 				}
 			}
 
 			return apply_filters('woocommerce_gateway_icon', $icon_html, $this->id);
 		}
 
-		public function cryptochill_payment_scripts()
+		public function wc_uniwire_gateway_payment_scripts()
 		{
 			// we need JavaScript to process a payment only on checkout
 			if (!is_cart() && !is_checkout() && !isset($_GET['pay_for_order'])) {
@@ -338,12 +338,12 @@
 			} else if (strpos($merchant_static_url, 'https://business.') === 0) {
 				$merchant_static_url = str_replace("https://business.", "https://static-business.", $merchant_static_url);
 			}
-			if (@$GLOBALS['CryptoChill_SDK_JS']) {
-				$sdk_url = $GLOBALS['CryptoChill_SDK_JS'];
+			if (@$GLOBALS['Uniwire_SDK_JS']) {
+				$sdk_url = $GLOBALS['Uniwire_SDK_JS'];
 			} else {
-				$sdk_url = $merchant_static_url . 'static/js/sdk.js';
+				$sdk_url = $merchant_static_url . 'static/js/sdk2.js';
 			}
-			wp_enqueue_script('cryptochill_sdk', $sdk_url, [], 0.4);
+			wp_enqueue_script('wc_uniwire_gateway_sdk', $sdk_url, [], 0.5);
 
 		}
 
@@ -360,14 +360,14 @@
 				if (empty(self::$log)) {
 					self::$log = wc_get_logger();
 				}
-				self::$log->log($level, $message, ['source' => 'cryptochill']);
+				self::$log->log($level, $message, ['source' => 'wc_uniwire_gateway']);
 			}
 		}
 
 		/**
 		 * Receipt Page
 		 **/
-		function cryptochill_payment_page($order_id)
+		function wc_uniwire_gateway_payment_page($order_id)
 		{
 
 			$this->init_api();
@@ -424,15 +424,15 @@
 				$merchant_params['invoice'] = ['id' => $payment_id];
 			}
 
-			wp_register_script('cryptochill_payment', plugins_url('merchant.js', __FILE__), [
+			wp_register_script('wc_uniwire_gateway_payment', plugins_url('merchant.js', __FILE__), [
 				'jquery',
-				'cryptochill_sdk'
+				'wc_uniwire_gateway_sdk'
 			]);
 
 
-			wp_localize_script('cryptochill_payment', 'merchant_params', $merchant_params);
+			wp_localize_script('wc_uniwire_gateway_payment', 'merchant_params', $merchant_params);
 
-			wp_enqueue_script('cryptochill_payment');
+			wp_enqueue_script('wc_uniwire_gateway_payment');
 
 
 			if ($placement == 'inline') {
@@ -453,7 +453,7 @@
 		protected function init_api()
 		{
 			include_once dirname(__FILE__) . '/includes/class-merchant-sdk-handler.php';
-			Cryptochill_SDK_Handler::$log = get_class($this) . '::log';
+			Uniwire_SDK_Handler::$log = get_class($this) . '::log';
 		}
 
 		/**
@@ -499,7 +499,7 @@
 		{
 			$this->init_api();
 			self::log('Check Orders Cron job...');
-			// Check the status of non-archived pending CryptoChill orders.
+			// Check the status of non-archived pending Uniwire orders.
 			$orders = wc_get_orders([
 				'merchant_archived' => false,
 				'status'            => ['wc-pending', 'wc-blockchainpending']
@@ -517,7 +517,7 @@
 				self::log('Order: ' . $payment_id);
 
 				usleep(300000);  // don't hit the rate limit.
-				$response = Cryptochill_SDK_Handler::send_request('invoices/status', ['id' => $payment_id], 'POST');
+				$response = Uniwire_SDK_Handler::send_request('invoices/status', ['id' => $payment_id], 'POST');
 
 				if (!$response[0]) {
 					self::log('Failed to fetch order updates for: ' . $order->get_id());
@@ -528,7 +528,7 @@
 
 				$status = $response[1]['invoice']['status'];
 				self::log('Status: ' . print_r($status, true));
-				$this->_update_order_status($order, $status);
+				$this->_update_order_status($order, $status, $response[1]['invoice']);
 			}
 		}
 
@@ -537,7 +537,7 @@
 		 *
 		 * @param WC_Order $order
 		 */
-		public function _update_order_status($order, $status)
+		public function _update_order_status($order, $status, $invoice)
 		{
 			$prev_status = $order->get_meta('_merchant_status');
 			self::log('Update order status from:' . $prev_status . ' to:' . $status);
@@ -545,24 +545,42 @@
 				$order->update_meta_data('_merchant_status', $status);
 
 				if ('expired' === $status && 'pending' == $order->get_status()) {
-					$order->update_status('cancelled', __('CryptoChill payment expired.', 'cryptochill'));
+					$order->update_status('cancelled', __('Uniwire payment expired.', 'wc_uniwire_gateway'));
 				} else if ('canceled' === $status) {
-					$order->update_status('cancelled', __('CryptoChill payment cancelled.', 'cryptochill'));
+					$order->update_status('cancelled', __('Uniwire payment cancelled.', 'wc_uniwire_gateway'));
 				} else if ('new' === $status) {
-					//					$order->add_order_note(__('CryptoChill invoice created.', 'cryptochill'));
+					//					$order->add_order_note(__('Uniwire invoice created.', 'wc_uniwire_gateway'));
 				} else if ('pending' === $status) {
-					$order->update_status('blockchainpending', __('CryptoChill payment detected, but awaiting blockchain confirmation.', 'cryptochill'));
+					$order->update_status('blockchainpending', __('Uniwire payment detected, but awaiting blockchain confirmation.', 'wc_uniwire_gateway'));
 				} else if ('failed' === $status) {
-					$order->update_status('failed', __('CryptoChill payment failed.', 'cryptochill'));
-				} else if ('confirmed' === $status) {
-					$order->update_status('processing', __('CryptoChill payment marked as confirmed.', 'cryptochill'));
-					$order->add_order_note(__('CryptoChill payment marked as confirmed.', 'cryptochill'));
+					$order->update_status('failed', __('Uniwire payment failed.', 'wc_uniwire_gateway'));
+				} else if ('confirmed' === $status || 'complete' === $status || 'paid' === $status) {
+					$order_total    = (float) wc_format_decimal( $order->get_total(), wc_get_price_decimals() );
+					$order_currency = $order->get_currency();
+
+					$req_currency = $invoice['amount']['requested']['currency'];
+					$req_amount = $invoice['amount']['requested']['amount'];
+
+					$diff = abs( (float) wc_format_decimal($req_amount, wc_get_price_decimals()) - $order_total );
+          $tolerance = $order_total * 0.01; // 1%
+          self::log('Order amount diff: ' . $diff . ' Tolerance: ' . $tolerance . ' Requested: ' . $req_amount . ' ' . $req_currency . ' Order amount: ' .$order_total . ' ' . $order_currency);
+
+          if ($order_total > 0 ? ($diff > $tolerance) : ($diff > 0.0)) {
+            $order->update_status('on-hold', __('Uniwire: amount mismatch', 'wc_uniwire_gateway'));
+            return;
+          }
+
+					if ($status === 'confirmed') {
+						$order->update_status('processing', __('Uniwire payment marked as confirmed.', 'wc_uniwire_gateway'));
+						$order->add_order_note(__('Uniwire payment marked as confirmed.', 'wc_uniwire_gateway'));
+					} else {
+						$order->update_status('processing', __('Uniwire payment was successfully processed.', 'wc_uniwire_gateway'));
+					}
+
 					$order->payment_complete();
+
 				} else if ('expired' === $status) {
-					$order->add_order_note(__('CryptoChill payment marked as expired.', 'cryptochill'));
-				} else if ('complete' === $status || 'paid' === $status) {
-					$order->update_status('processing', __('CryptoChill payment was successfully processed.', 'cryptochill'));
-					$order->payment_complete();
+					$order->add_order_note(__('Uniwire payment marked as expired.', 'wc_uniwire_gateway'));
 				}
 			}
 
@@ -601,7 +619,7 @@
 					if (empty($payment_id) || $data['invoice_id'] != $payment_id) {
 						$order->update_meta_data('_merchant_payment_id', $data['invoice_id']);
 						if ($order->get_status() == 'canceled') {
-							$order->update_status('processing', __('CryptoChill payment was successfully processed.', 'cryptochill'));
+							$order->update_status('processing', __('Uniwire payment was successfully processed.', 'wc_uniwire_gateway'));
 						}
 						$order->save();
 						self::log('Update meta for order: ' . $order_id);
@@ -658,17 +676,17 @@
 
 				$order->update_meta_data('_merchant_payment_id', $invoice['id']);
 				$order->save();
-				$this->_update_order_status($order, $status);
+				$this->_update_order_status($order, $status, $invoice);
 				self::log('Updated order status: ' . $status);
 
 				exit;  // 200 response for acknowledgement.
 			}
 
-			wp_die('CryptoChill Webhook Request Failure', 'CryptoChill Webhook', ['response' => 500]);
+			wp_die('Uniwire Webhook Request Failure', 'Uniwire Webhook', ['response' => 500]);
 		}
 
 		/**
-		 * Check CryptoChill webhook request is valid.
+		 * Check Uniwire webhook request is valid.
 		 *
 		 * @param string $payload
 		 */
@@ -697,7 +715,7 @@
 
 		/**
 		 * Handle a custom 'merchant_archived' query var to get orders
-		 * payed through CryptoChill with the '_merchant_archived' meta.
+		 * payed through Uniwire with the '_merchant_archived' meta.
 		 *
 		 * @param array $query - Args for WP_Query.
 		 * @param array $query_vars - Query vars from WC_Order_Query.
@@ -711,7 +729,7 @@
 					'key'     => '_merchant_archived',
 					'compare' => $query_vars['merchant_archived'] ? 'EXISTS' : 'NOT EXISTS',
 				];
-				// Limit only to orders payed through CryptoChill.
+				// Limit only to orders payed through Uniwire.
 				$query['meta_query'][] = [
 					'key'     => '_merchant_payment_id',
 					'compare' => 'EXISTS',
