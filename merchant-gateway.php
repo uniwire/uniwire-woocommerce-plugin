@@ -1,31 +1,31 @@
 <?php
 	/*
-	Plugin Name:  CryptoChill Payment Gateway
-	Plugin URI:   https://cryptochill.com/
+	Plugin Name:  Uniwire Payment Gateway
+	Plugin URI:   https://uniwire.com/
 	Description:  A payment gateway that allows your customers to pay with cryptocurrency
-	Version:      0.4
-	Author:       Cryptochill
+	Version:      0.5
+	Author:       Uniwire
 	License:      GPLv3+
 	License URI:  https://www.gnu.org/licenses/gpl-3.0.html
-	Text Domain:  cryptochill
+	Text Domain:  wc_uniwire_gateway
 	Domain Path:  /languages
 	Requires Plugins: woocommerce
 
 	WC requires at least: 3.0.9
 	WC tested up to: 8.6.0
 
-	CryptoChill is free software: you can redistribute it and/or modify
+	Uniwire is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	any later version.
 
-	CryptoChill is distributed in the hope that it will be useful,
+	Uniwire is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with CryptoChill WooCommerce. If not, see https://www.gnu.org/licenses/gpl-3.0.html.
+	along with Uniwire WooCommerce. If not, see https://www.gnu.org/licenses/gpl-3.0.html.
 	*/
 	if (!defined('SUPPORTED_MERCHANT_CURRENCIES')) {
 		define('SUPPORTED_MERCHANT_CURRENCIES', [
@@ -42,17 +42,17 @@
 	}
 
 	if (!defined('__' . 'MERCHANT_TITLE' . '__')) {
-		define('__' . 'MERCHANT_TITLE' . '__', 'Cryptochill');
+		define('__' . 'MERCHANT_TITLE' . '__', 'Uniwire');
 	}
 
-	if (!isset($GLOBALS['CryptoChill_SDK_JS'])) {
-		$GLOBALS['CryptoChill_SDK_JS'] = 'https://static.cryptochill.com/static/js/sdk2.js';
+	if (!isset($GLOBALS['Uniwire_SDK_JS'])) {
+		$GLOBALS['Uniwire_SDK_JS'] = 'https://static.cryptochill.com/static/js/sdk2.js';
 	}
 
-	if (@$GLOBALS['CryptoChill_SDK_JS'] === '__' . 'VITE_SDK_JS' . '__') {
-		unset($GLOBALS['CryptoChill_SDK_JS']);
+	if (@$GLOBALS['Uniwire_SDK_JS'] === '__' . 'VITE_SDK_JS' . '__') {
+		unset($GLOBALS['Uniwire_SDK_JS']);
 	}
-	function cryptochill_init_gateway()
+	function wc_uniwire_gateway_init_gateway()
 	{
 		// If WooCommerce is available, initialise WC parts.
 //		$site_plugins    = apply_filters( 'active_plugins', get_option( 'active_plugins' ) );
@@ -60,15 +60,15 @@
 
 		if (class_exists('WooCommerce')) {
 			require_once 'class-wc-merchant-gateway.php';
-			add_action('init', 'cryptochill_wc_register_blockchain_status');
-			add_action('init', 'cryptochill_wc_check_currency_support');
-			add_filter('woocommerce_valid_order_statuses_for_payment', 'cryptochill_wc_status_valid_for_payment', 10, 2);
-			add_action('cryptochill_check_orders', 'cryptochill_wc_check_orders');
-			add_filter('woocommerce_payment_gateways', 'cryptochill_wc_add_merchant_class');
-			add_filter('wc_order_statuses', 'cryptochill_wc_add_status');
-			add_action('woocommerce_admin_order_data_after_order_details', 'cryptochill_order_meta_general');
-			add_action('woocommerce_order_details_after_order_table', 'cryptochill_order_meta_general');
-			add_filter('woocommerce_email_order_meta_fields', 'cryptochill_custom_woocommerce_email_order_meta_fields', 10, 3);
+			add_action('init', 'wc_uniwire_gateway_wc_register_blockchain_status');
+			add_action('init', 'wc_uniwire_gateway_wc_check_currency_support');
+			add_filter('woocommerce_valid_order_statuses_for_payment', 'wc_uniwire_gateway_wc_status_valid_for_payment', 10, 2);
+			add_action('wc_uniwire_gateway_check_orders', 'wc_uniwire_gateway_wc_check_orders');
+			add_filter('woocommerce_payment_gateways', 'wc_uniwire_gateway_wc_add_merchant_class');
+			add_filter('wc_order_statuses', 'wc_uniwire_gateway_wc_add_status');
+			add_action('woocommerce_admin_order_data_after_order_details', 'wc_uniwire_gateway_order_meta_general');
+			add_action('woocommerce_order_details_after_order_table', 'wc_uniwire_gateway_order_meta_general');
+			add_filter('woocommerce_email_order_meta_fields', 'wc_uniwire_gateway_custom_woocommerce_email_order_meta_fields', 10, 3);
 
 			add_action('before_woocommerce_init', function () {
 				if (class_exists(\Automattic\WooCommerce\Utilities\FeaturesUtil::class)) {
@@ -78,13 +78,13 @@
 		}
 	}
 
-	add_action('plugins_loaded', 'cryptochill_init_gateway');
+	add_action('plugins_loaded', 'wc_uniwire_gateway_init_gateway');
 
 
 	// Setup cron job.
 
 
-	function cryptochill_cron_add_minute($schedules)
+	function wc_uniwire_gateway_cron_add_minute($schedules)
 	{
 		// Adds once every 5 minutes to the existing schedules.
 		$schedules['every_5_minutes'] = [
@@ -95,13 +95,13 @@
 		return $schedules;
 	}
 
-	add_filter('cron_schedules', 'cryptochill_cron_add_minute');
+	add_filter('cron_schedules', 'wc_uniwire_gateway_cron_add_minute');
 
-	function cryptochill_activation()
+	function wc_uniwire_gateway_activation()
 	{
 
 		if (!class_exists('WooCommerce')) {
-			$message = __('WooCommerce is not installed!', 'cryptochill');
+			$message = __('WooCommerce is not installed!', 'wc_uniwire_gateway');
 
 //            wp_die($message);
 			return;
@@ -109,23 +109,23 @@
 
 		if (!in_array(get_woocommerce_currency(), SUPPORTED_MERCHANT_CURRENCIES)) {
 			deactivate_plugins(plugin_basename(__FILE__));
-			$message = sprintf(__('Your shop currency (%s) is not supported by CryptoChill!  Sorry about that.', 'cryptochill'), get_woocommerce_currency());
+			$message = sprintf(__('Your shop currency (%s) is not supported by Uniwire!  Sorry about that.', 'wc_uniwire_gateway'), get_woocommerce_currency());
 			wp_die($message);
 		}
 
-		if (!wp_next_scheduled('cryptochill_check_orders')) {
-			wp_schedule_event(time(), 'every_minute', 'cryptochill_check_orders');
+		if (!wp_next_scheduled('wc_uniwire_gateway_check_orders')) {
+			wp_schedule_event(time(), 'every_minute', 'wc_uniwire_gateway_check_orders');
 		}
 	}
 
-	register_activation_hook(__FILE__, 'cryptochill_activation');
+	register_activation_hook(__FILE__, 'wc_uniwire_gateway_activation');
 
-	function cryptochill_deactivation()
+	function wc_uniwire_gateway_deactivation()
 	{
-		wp_clear_scheduled_hook('cryptochill_check_orders');
+		wp_clear_scheduled_hook('wc_uniwire_gateway_check_orders');
 	}
 
-	register_deactivation_hook(__FILE__, 'cryptochill_deactivation');
+	register_deactivation_hook(__FILE__, 'wc_uniwire_gateway_deactivation');
 
 	if (!defined('CHECK_PLUGIN_DEPENDENCIES_PLUGIN_FILE')) {
 		/**
@@ -153,43 +153,43 @@
 
 	// WooCommerce
 
-	function cryptochill_wc_add_merchant_class($gateways)
+	function wc_uniwire_gateway_wc_add_merchant_class($gateways)
 	{
-		$gateways[] = 'WC_Cryptochill_Gateway';
+		$gateways[] = 'WC_Uniwire_Gateway';
 
 		return $gateways;
 	}
 
-	function cryptochill_wc_check_orders()
+	function wc_uniwire_gateway_wc_check_orders()
 	{
-		// WC_Cryptochill_Gateway->id = 'cryptochill'
-		$gateway = WC()->payment_gateways()->payment_gateways()['cryptochill'];
+		// WC_Uniwire_Gateway->id = 'wc_uniwire_gateway'
+		$gateway = WC()->payment_gateways()->payment_gateways()['wc_uniwire_gateway'];
 
 		return $gateway->check_orders();
 	}
 
-	function cryptochill_currency_admin_notice__error()
+	function wc_uniwire_gateway_currency_admin_notice__error()
 	{
 		$class = 'notice notice-error';
-		$message = sprintf(__('Your shop currency (%s) is not supported bu CryptoChill!', 'cryptochill'), get_woocommerce_currency());
+		$message = sprintf(__('Your shop currency (%s) is not supported bu Uniwire!', 'wc_uniwire_gateway'), get_woocommerce_currency());
 		printf('<div class="%1$s"><p>%2$s</p></div>', esc_attr($class), esc_html($message));
 	}
 
-	function cryptochill_wc_check_currency_support()
+	function wc_uniwire_gateway_wc_check_currency_support()
 	{
 		if (!in_array(get_woocommerce_currency(), SUPPORTED_MERCHANT_CURRENCIES)) {
-			add_action('admin_notices', 'cryptochill_currency_admin_notice__error');
+			add_action('admin_notices', 'wc_uniwire_gateway_currency_admin_notice__error');
 		}
 	}
 
 
 	/**
-	 * Register new status with ID "wc-blockchainpending" and label "CryptoChill Pending"
+	 * Register new status with ID "wc-blockchainpending" and label "Uniwire Pending"
 	 */
-	function cryptochill_wc_register_blockchain_status()
+	function wc_uniwire_gateway_wc_register_blockchain_status()
 	{
 		register_post_status('wc-blockchainpending', [
-			'label'                     => __('Blockchain Pending', 'cryptochill'),
+			'label'                     => __('Blockchain Pending', 'wc_uniwire_gateway'),
 			'public'                    => true,
 			'show_in_admin_status_list' => true,
 			'label_count'               => _n_noop('Blockchain pending <span class="count">(%s)</span>', 'Blockchain pending <span class="count">(%s)</span>'),
@@ -199,7 +199,7 @@
 	/**
 	 * Register wc-blockchainpending status as valid for payment.
 	 */
-	function cryptochill_wc_status_valid_for_payment($statuses, $order)
+	function wc_uniwire_gateway_wc_status_valid_for_payment($statuses, $order)
 	{
 		$statuses[] = 'wc-blockchainpending';
 
@@ -213,7 +213,7 @@
 	 *
 	 * @return array
 	 */
-	function cryptochill_wc_add_status($wc_statuses_arr)
+	function wc_uniwire_gateway_wc_add_status($wc_statuses_arr)
 	{
 		$new_statuses_arr = [];
 
@@ -222,7 +222,7 @@
 			$new_statuses_arr[$id] = $label;
 
 			if ('wc-pending' === $id) {  // after "Payment Pending" status.
-				$new_statuses_arr['wc-blockchainpending'] = __('Blockchain Pending', 'cryptochill');
+				$new_statuses_arr['wc-blockchainpending'] = __('Blockchain Pending', 'wc_uniwire_gateway');
 			}
 		}
 
@@ -231,13 +231,13 @@
 
 
 	/**
-	 * Add order CryptoChill meta after General and before Billing
+	 * Add order Uniwire meta after General and before Billing
 	 *
 	 * @param WC_Order $order WC order instance
 	 */
-	function cryptochill_order_meta_general($order)
+	function wc_uniwire_gateway_order_meta_general($order)
 	{
-		if ($order->get_payment_method() == 'cryptochill') {
+		if ($order->get_payment_method() == 'wc_uniwire_gateway') {
 
 			if (!defined('MERCHANT_SITE_URL')) {
 				die('No environment configured MERCHANT_SITE_URL');
@@ -246,7 +246,7 @@
             <br class="clear"/>
             <h3>Payment Data</h3>
             <div class="">
-                <p>CryptoChill ID:
+                <p>Uniwire ID:
 					<?php
 						$payment_path = 'public/payment/';
 						if (strpos(MERCHANT_SITE_URL, 'cryptochill') !== false) {
@@ -263,7 +263,7 @@
 
 
 	/**
-	 * Add CryptoChill meta to WC emails
+	 * Add Uniwire meta to WC emails
 	 *
 	 * @param array $fields indexed list of existing additional fields.
 	 * @param bool $sent_to_admin If should sent to admin.
@@ -271,11 +271,11 @@
 	 *
 	 * @return array
 	 */
-	function cryptochill_custom_woocommerce_email_order_meta_fields($fields, $sent_to_admin, $order)
+	function wc_uniwire_gateway_custom_woocommerce_email_order_meta_fields($fields, $sent_to_admin, $order)
 	{
-		if ($order->get_payment_method() == 'cryptochill') {
+		if ($order->get_payment_method() == 'wc_uniwire_gateway') {
 			$fields['merchant_commerce_reference'] = [
-				'label' => __('CryptoChill Payment ID #'),
+				'label' => __('Uniwire Payment ID #'),
 				'value' => $order->get_meta('_merchant_payment_id'),
 			];
 		}
