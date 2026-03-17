@@ -80,7 +80,7 @@
 			});
 
 			add_action('woocommerce_blocks_payment_method_type_registration', function ($registry) {
-				require_once __DIR__ . '/includes/Blocks/Uniwire_Gateway_Block.php';
+				require_once __DIR__ . '/includes/Blocks/Gateway_Block.php';
 				$registry->register(new Uniwire_Gateway_Block());
 			});
 		}

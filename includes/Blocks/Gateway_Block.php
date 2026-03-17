@@ -6,16 +6,16 @@ if (!defined('ABSPATH')) {
 	exit;
 }
 
-final class Merchant_Gateway_Block extends AbstractPaymentMethodType {
+final class Uniwire_Gateway_Block extends AbstractPaymentMethodType {
 
-	protected $name = 'merchant_plugin';
+	protected $name = 'wc_uniwire_gateway';
 
 	private $gateway;
 
 	public function initialize() {
-		$this->settings = get_option('woocommerce_merchant_plugin_settings', []);
+		$this->settings = get_option('woocommerce_wc_uniwire_gateway_settings', []);
 		$gateways = WC()->payment_gateways->payment_gateways();
-		$this->gateway = isset($gateways['merchant_plugin']) ? $gateways['merchant_plugin'] : null;
+		$this->gateway = isset($gateways['wc_uniwire_gateway']) ? $gateways['wc_uniwire_gateway'] : null;
 	}
 
 	public function is_active() {
