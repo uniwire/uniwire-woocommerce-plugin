@@ -343,7 +343,7 @@
 			} else {
 				$sdk_url = $merchant_static_url . 'static/js/sdk2.js';
 			}
-			wp_enqueue_script('wc_uniwire_gateway_sdk', $sdk_url, [], 0.5);
+			wp_enqueue_script('wc_uniwire_gateway_sdk', $sdk_url, [], 0.6);
 
 		}
 
@@ -566,7 +566,12 @@
           self::log('Order amount diff: ' . $diff . ' Tolerance: ' . $tolerance . ' Requested: ' . $req_amount . ' ' . $req_currency . ' Order amount: ' .$order_total . ' ' . $order_currency);
 
           if ($order_total > 0 ? ($diff > $tolerance) : ($diff > 0.0)) {
-            $order->update_status('on-hold', __('Uniwire: amount mismatch', 'wc_uniwire_gateway'));
+            $invoice_id = $invoice['id'] ?? '';
+            $invoice_url = $this->merchant_site_url . 'invoice/' . $invoice_id . '/';
+            $order->update_status('on-hold', sprintf(
+              __('Uniwire: amount mismatch — invoice %s %s, order %s %s. <a href="%s" target="_blank">View invoice</a>', 'wc_uniwire_gateway'),
+              $req_amount, $req_currency, $order_total, $order_currency, $invoice_url
+            ));
             return;
           }
 
@@ -604,23 +609,27 @@
 
 			self::log('Webhook received payload ' . print_r($payload, true));
 
-			if (!empty($payload)) {
-				$data = json_decode($payload, true);
+			if (empty($payload)) {
+				wp_die('Uniwire Webhook Request Failure', 'Uniwire Webhook', ['response' => 500]);
 			}
 
-			if (!empty($data['action']) && $data['action'] == 'update_invoice' && !empty($data['invoice_id'])) {
-				self::log('Received invoice: ' . $data['invoice_id']);
+			$data = json_decode($payload, true);
 
-				$order_id = $data['order_id'];
+			// Handle SDK-initiated invoice update (from client JS onUpdate callback)
+			if (!empty($data['action']) && $data['action'] == 'update_invoice' && !empty($data['invoice_id'])) {
+				self::log('Received invoice update: ' . $data['invoice_id']);
+
+				$order_id = $data['order_id'] ?? null;
+				if (!$order_id) {
+					exit;
+				}
+
 				$order = wc_get_order($order_id);
 				if ($order) {
 					$payment_id = $order->get_meta('_merchant_payment_id');
 
 					if (empty($payment_id) || $data['invoice_id'] != $payment_id) {
 						$order->update_meta_data('_merchant_payment_id', $data['invoice_id']);
-						if ($order->get_status() == 'canceled') {
-							$order->update_status('processing', __('Uniwire payment was successfully processed.', 'wc_uniwire_gateway'));
-						}
 						$order->save();
 						self::log('Update meta for order: ' . $order_id);
 					}
@@ -630,59 +639,63 @@
 					self::log('Failed to get order: ' . $order_id);
 				}
 
+				exit;
 			}
 
-			if (!empty($payload) && $this->validate_webhook($payload)) {
-
-				$callback_status = $data['callback_status'];
-
-				self::log('Callback status: ' . $callback_status);
-
-
-				// Define which statuses are going to be handled by the webhook.
-				if (!in_array($callback_status, [
-					'payment_complete',
-					'invoice_complete',
-					'invoice_confirmed',
-					'invoice_pending'
-				], true)) {
-					exit;
-				}
-
-
-				$invoice = $data['payment'] ?? $data['invoice'];
-				$status = $invoice['status'];
-				$passthrough = json_decode($invoice['passthrough'], true);
-
-				self::log('Webhook received event ' . $callback_status . ' | ' . $status . ' : ' . print_r($data, true));
-
-				if (!isset($passthrough['order_id'])) {
-					// Probably invoice not created by gateway.
-					self::log('Probably invoice not created by gateway.');
-					exit;
-				}
-
-				$order_id = $passthrough['order_id'];
-
-				self::log('Order ID: ' . $order_id);
-				self::log('Invoice ID: ' . $invoice['id']);
-
-				$order = wc_get_order($order_id);
-
-				if(!$order) {
-					self::log('Order not found');
-					exit;
-				}
-
-				$order->update_meta_data('_merchant_payment_id', $invoice['id']);
-				$order->save();
-				$this->_update_order_status($order, $status, $invoice);
-				self::log('Updated order status: ' . $status);
-
-				exit;  // 200 response for acknowledgement.
+			// All other webhook types require valid signature
+			if (!$this->validate_webhook($payload)) {
+				wp_die('Uniwire Webhook Request Failure', 'Uniwire Webhook', ['response' => 500]);
 			}
 
-			wp_die('Uniwire Webhook Request Failure', 'Uniwire Webhook', ['response' => 500]);
+			$callback_status = $data['callback_status'];
+
+			self::log('Callback status: ' . $callback_status);
+
+			// Define which statuses are going to be handled by the webhook.
+			if (!in_array($callback_status, [
+				'payment_complete',
+				'invoice_complete',
+				'invoice_confirmed',
+				'invoice_pending'
+			], true)) {
+				exit;
+			}
+
+			$invoice = $data['payment'] ?? $data['invoice'];
+			$status = $invoice['status'];
+			$passthrough = json_decode($invoice['passthrough'], true);
+
+			self::log('Webhook received event ' . $callback_status . ' | ' . $status . ' : ' . print_r($data, true));
+
+			if (!isset($passthrough['order_id'])) {
+				self::log('Probably invoice not created by gateway.');
+				exit;
+			}
+
+			$order_id = $passthrough['order_id'];
+
+			self::log('Order ID: ' . $order_id);
+			self::log('Invoice ID: ' . $invoice['id']);
+
+			$order = wc_get_order($order_id);
+
+			if (!$order) {
+				self::log('Order not found');
+				exit;
+			}
+
+			// Verify order_key if present in passthrough
+			if (!empty($passthrough['order_key']) && $order->get_order_key() !== $passthrough['order_key']) {
+				self::log('Order key mismatch for order: ' . $order_id);
+				exit;
+			}
+
+			$order->update_meta_data('_merchant_payment_id', $invoice['id']);
+			$order->save();
+			$this->_update_order_status($order, $status, $invoice);
+			self::log('Updated order status: ' . $status);
+
+			exit;  // 200 response for acknowledgement.
 		}
 
 		/**
@@ -702,7 +715,7 @@
 			$sig = hash_hmac('SHA256', $callback_id, $callback_token);
 
 			# Compare signatures
-			$is_valid = ($signature == $sig) ? true : false;
+			$is_valid = hash_equals($sig, $signature);
 			self::log('Signature valid ' . $is_valid);
 
 

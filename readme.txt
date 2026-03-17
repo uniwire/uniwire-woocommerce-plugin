@@ -4,7 +4,7 @@ Tags: merchant, woo, woocommerce, ecommerce, bitcoin, litecoin, blockchain, comm
 Requires at least: 3.0
 Requires PHP: 5.6
 Tested up to: 5.2
-Stable tag: 0.0.5
+Stable tag: 0.6
 License: GPLv2 or later
 
 == Description ==
@@ -96,6 +96,18 @@ To use this plugin with your WooCommerce store you will need:
 
 
 == Changelog ==
+
+= 0.6 =
+* Security: Fix unauthenticated webhook path that allowed order status manipulation
+* Security: Use timing-safe HMAC signature comparison
+* Security: Add order_key verification in webhook callbacks
+* Security: Improve amount mismatch order notes with invoice details and link
+* Feature: Add Payment Audit admin page (WooCommerce > Payment Audit)
+* Feature: Add WooCommerce block-based checkout support
+* Feature: Add amount manipulation attack simulation test
+
+= 0.5 =
+* Security: Add server-side amount verification on payment confirmation
 
 = 0.0.0 =
 * Uniwire

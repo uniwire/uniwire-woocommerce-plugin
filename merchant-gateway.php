@@ -3,7 +3,7 @@
 	Plugin Name:  Uniwire Payment Gateway
 	Plugin URI:   https://uniwire.com/
 	Description:  A payment gateway that allows your customers to pay with cryptocurrency
-	Version:      0.5
+	Version:      0.6
 	Author:       Uniwire
 	License:      GPLv3+
 	License URI:  https://www.gnu.org/licenses/gpl-3.0.html
@@ -60,6 +60,7 @@
 
 		if (class_exists('WooCommerce')) {
 			require_once 'class-wc-merchant-gateway.php';
+			require_once __DIR__ . '/includes/Admin/Amount_Mismatch_Page.php';
 			add_action('init', 'wc_uniwire_gateway_wc_register_blockchain_status');
 			add_action('init', 'wc_uniwire_gateway_wc_check_currency_support');
 			add_filter('woocommerce_valid_order_statuses_for_payment', 'wc_uniwire_gateway_wc_status_valid_for_payment', 10, 2);
@@ -69,11 +70,18 @@
 			add_action('woocommerce_admin_order_data_after_order_details', 'wc_uniwire_gateway_order_meta_general');
 			add_action('woocommerce_order_details_after_order_table', 'wc_uniwire_gateway_order_meta_general');
 			add_filter('woocommerce_email_order_meta_fields', 'wc_uniwire_gateway_custom_woocommerce_email_order_meta_fields', 10, 3);
+			Uniwire_Amount_Mismatch_Page::init();
 
 			add_action('before_woocommerce_init', function () {
 				if (class_exists(\Automattic\WooCommerce\Utilities\FeaturesUtil::class)) {
 					\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility('custom_order_tables', __FILE__, true);
+					\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility('cart_checkout_blocks', __FILE__, true);
 				}
+			});
+
+			add_action('woocommerce_blocks_payment_method_type_registration', function ($registry) {
+				require_once __DIR__ . '/includes/Blocks/Uniwire_Gateway_Block.php';
+				$registry->register(new Uniwire_Gateway_Block());
 			});
 		}
 	}
