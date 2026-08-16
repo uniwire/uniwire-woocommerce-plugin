@@ -3,7 +3,7 @@
 	Plugin Name:  Uniwire Payment Gateway
 	Plugin URI:   https://uniwire.com/
 	Description:  A payment gateway that allows your customers to pay with cryptocurrency
-	Version:      0.6
+	Version:      0.7
 	Author:       Uniwire
 	License:      GPLv3+
 	License URI:  https://www.gnu.org/licenses/gpl-3.0.html

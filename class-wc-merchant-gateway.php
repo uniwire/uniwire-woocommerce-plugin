@@ -343,7 +343,7 @@
 			} else {
 				$sdk_url = $merchant_static_url . 'static/js/sdk2.js';
 			}
-			wp_enqueue_script('wc_uniwire_gateway_sdk', $sdk_url, [], 0.6);
+			wp_enqueue_script('wc_uniwire_gateway_sdk', $sdk_url, [], 0.7);
 
 		}
 
