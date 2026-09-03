@@ -3,7 +3,7 @@
 	Plugin Name:  Uniwire Payment Gateway
 	Plugin URI:   https://uniwire.com/
 	Description:  A payment gateway that allows your customers to pay with cryptocurrency
-	Version:      0.7
+	Version:      0.8
 	Author:       Uniwire
 	License:      GPLv3+
 	License URI:  https://www.gnu.org/licenses/gpl-3.0.html
@@ -64,6 +64,7 @@
 			add_action('init', 'wc_uniwire_gateway_wc_register_blockchain_status');
 			add_action('init', 'wc_uniwire_gateway_wc_check_currency_support');
 			add_filter('woocommerce_valid_order_statuses_for_payment', 'wc_uniwire_gateway_wc_status_valid_for_payment', 10, 2);
+			add_filter('woocommerce_valid_order_statuses_for_payment_complete', 'wc_uniwire_gateway_wc_status_valid_for_payment_complete', 10, 2);
 			add_action('wc_uniwire_gateway_check_orders', 'wc_uniwire_gateway_wc_check_orders');
 			add_filter('woocommerce_payment_gateways', 'wc_uniwire_gateway_wc_add_merchant_class');
 			add_filter('wc_order_statuses', 'wc_uniwire_gateway_wc_add_status');
@@ -210,6 +211,17 @@
 	function wc_uniwire_gateway_wc_status_valid_for_payment($statuses, $order)
 	{
 		$statuses[] = 'wc-blockchainpending';
+
+		return $statuses;
+	}
+
+	/**
+	 * Register blockchainpending status as valid for payment_complete().
+	 * WC compares this list against $order->get_status(), which has no "wc-" prefix.
+	 */
+	function wc_uniwire_gateway_wc_status_valid_for_payment_complete($statuses, $order)
+	{
+		$statuses[] = 'blockchainpending';
 
 		return $statuses;
 	}

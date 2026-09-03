@@ -4,7 +4,7 @@ Tags: merchant, woo, woocommerce, ecommerce, bitcoin, litecoin, blockchain, comm
 Requires at least: 3.0
 Requires PHP: 5.6
 Tested up to: 5.2
-Stable tag: 0.6
+Stable tag: 0.8
 License: GPLv2 or later
 
 == Description ==
@@ -96,6 +96,15 @@ To use this plugin with your WooCommerce store you will need:
 
 
 == Changelog ==
+
+= 0.8 =
+* Fix: payment_complete() was a silent no-op because the order was moved to "processing" first; paid orders now get date_paid, _transaction_id and fire woocommerce_payment_complete (fixes Autocomplete Orders / Subscriptions integrations)
+* Fix: register "blockchainpending" as a valid status for payment_complete()
+* Debug: log request headers when a webhook arrives with an empty payload; log signature check result explicitly
+* Test: add payment_complete regression test (tests/test-payment-complete.php)
+
+= 0.7 =
+* Update SDK endpoint references and provider config
 
 = 0.6 =
 * Security: Fix unauthenticated webhook path that allowed order status manipulation

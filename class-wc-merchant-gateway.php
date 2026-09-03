@@ -343,7 +343,7 @@
 			} else {
 				$sdk_url = $merchant_static_url . 'static/js/sdk2.js';
 			}
-			wp_enqueue_script('wc_uniwire_gateway_sdk', $sdk_url, [], 0.7);
+			wp_enqueue_script('wc_uniwire_gateway_sdk', $sdk_url, [], 0.8);
 
 		}
 
@@ -576,13 +576,16 @@
           }
 
 					if ($status === 'confirmed') {
-						$order->update_status('processing', __('Uniwire payment marked as confirmed.', 'wc_uniwire_gateway'));
 						$order->add_order_note(__('Uniwire payment marked as confirmed.', 'wc_uniwire_gateway'));
 					} else {
-						$order->update_status('processing', __('Uniwire payment was successfully processed.', 'wc_uniwire_gateway'));
+						$order->add_order_note(__('Uniwire payment was successfully processed.', 'wc_uniwire_gateway'));
 					}
 
-					$order->payment_complete();
+					// Let WooCommerce move the order to processing/completed itself
+					// (woocommerce_payment_complete_order_status) and record the transaction id.
+					// payment_complete() is a no-op unless the order is still in a payable status,
+					// so the status must not be changed manually before this call.
+					$order->payment_complete($invoice['id'] ?? '');
 
 				} else if ('expired' === $status) {
 					$order->add_order_note(__('Uniwire payment marked as expired.', 'wc_uniwire_gateway'));
@@ -610,6 +613,15 @@
 			self::log('Webhook received payload ' . print_r($payload, true));
 
 			if (empty($payload)) {
+				self::log('Headers: ' . print_r([
+					'RM'  => $_SERVER['REQUEST_METHOD'] ?? '-',
+					'XFP' => $_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '-',
+					'CL'  => $_SERVER['CONTENT_LENGTH'] ?? '-',
+					'CT'  => $_SERVER['CONTENT_TYPE'] ?? '-',
+					'TE'  => $_SERVER['HTTP_TRANSFER_ENCODING'] ?? '-',
+					'UA'  => $_SERVER['HTTP_USER_AGENT'] ?? '-',
+					'URI' => $_SERVER['REQUEST_URI'] ?? '-',
+				], true));
 				wp_die('Uniwire Webhook Request Failure', 'Uniwire Webhook', ['response' => 500]);
 			}
 
@@ -716,7 +728,7 @@
 
 			# Compare signatures
 			$is_valid = hash_equals($sig, $signature);
-			self::log('Signature valid ' . $is_valid);
+			self::log('Signature valid: ' . var_export($is_valid, true));
 
 
 			if ($is_valid) {
