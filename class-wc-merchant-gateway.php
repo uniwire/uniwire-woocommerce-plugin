@@ -343,7 +343,7 @@
 			} else {
 				$sdk_url = $merchant_static_url . 'static/js/sdk2.js';
 			}
-			wp_enqueue_script('wc_uniwire_gateway_sdk', $sdk_url, [], 0.8);
+			wp_enqueue_script('wc_uniwire_gateway_sdk', $sdk_url, [], 0.9);
 
 		}
 
@@ -541,7 +541,17 @@
 		{
 			$prev_status = $order->get_meta('_merchant_status');
 			self::log('Update order status from:' . $prev_status . ' to:' . $status);
-			if ($status !== $prev_status) {
+
+			// Orders damaged by releases before 0.8 already carry a paid _merchant_status but
+			// were never finalised (payment_complete() was a no-op back then), so re-sending the
+			// same callback must still be able to repair them. get_date_paid() cannot be used as
+			// the "already finalised" marker: WooCommerce sets it itself whenever an order moves
+			// to processing, so the damaged orders have it too.
+			$needs_payment_completion = in_array($status, ['confirmed', 'complete', 'paid'], true)
+				&& !$order->get_meta('_merchant_payment_completed')
+				&& !$order->get_transaction_id();
+
+			if ($status !== $prev_status || $needs_payment_completion) {
 				$order->update_meta_data('_merchant_status', $status);
 
 				if ('expired' === $status && 'pending' == $order->get_status()) {
@@ -585,7 +595,44 @@
 					// (woocommerce_payment_complete_order_status) and record the transaction id.
 					// payment_complete() is a no-op unless the order is still in a payable status,
 					// so the status must not be changed manually before this call.
+					// When recovering an order a faulty release already pushed out of a payable
+					// status, allow payment_complete() to finalise it from where it is stuck.
+					$allow_stuck_status = null;
+					$keep_stuck_status  = null;
+					if ($needs_payment_completion && $order->has_status(['processing', 'completed'])) {
+						$stuck_status = $order->get_status();
+						$allow_stuck_status = function ($statuses) use ($stuck_status) {
+							$statuses[] = $stuck_status;
+
+							return $statuses;
+						};
+						add_filter('woocommerce_valid_order_statuses_for_payment_complete', $allow_stuck_status);
+
+						// A recovery pass must never move the order backwards. payment_complete()
+						// would resolve to 'processing' for a physical product, downgrading an
+						// order an admin already completed by hand, so keep the status it is in.
+						if ('completed' === $stuck_status) {
+							$stuck_order_id = $order->get_id();
+							$keep_stuck_status = function ($new_status, $order_id = 0) use ($stuck_status, $stuck_order_id) {
+								return ((int) $order_id === (int) $stuck_order_id) ? $stuck_status : $new_status;
+							};
+							add_filter('woocommerce_payment_complete_order_status', $keep_stuck_status, 10, 2);
+						}
+					}
+
 					$order->payment_complete($invoice['id'] ?? '');
+
+					if ($allow_stuck_status) {
+						remove_filter('woocommerce_valid_order_statuses_for_payment_complete', $allow_stuck_status);
+					}
+
+					if ($keep_stuck_status) {
+						remove_filter('woocommerce_payment_complete_order_status', $keep_stuck_status, 10);
+					}
+
+					// Explicit marker that this plugin finalised the payment, so a re-sent
+					// callback cannot complete the same order twice.
+					$order->update_meta_data('_merchant_payment_completed', true);
 
 				} else if ('expired' === $status) {
 					$order->add_order_note(__('Uniwire payment marked as expired.', 'wc_uniwire_gateway'));

@@ -4,7 +4,7 @@ Tags: merchant, woo, woocommerce, ecommerce, bitcoin, litecoin, blockchain, comm
 Requires at least: 3.0
 Requires PHP: 5.6
 Tested up to: 5.2
-Stable tag: 0.8
+Stable tag: 0.9
 License: GPLv2 or later
 
 == Description ==
@@ -96,6 +96,11 @@ To use this plugin with your WooCommerce store you will need:
 
 
 == Changelog ==
+
+= 0.9 =
+* Fix: orders left unfinalised by an earlier release can now be repaired by re-sending the callback; the payment is completed once and the order is never moved backwards
+* Fix: the order screen payment link pointed at a 404 path; it now links to the invoice page
+* Test: add stuck order recovery regression test (tests/test-stuck-order-recovery.php)
 
 = 0.8 =
 * Fix: payment_complete() was a silent no-op because the order was moved to "processing" first; paid orders now get date_paid, _transaction_id and fire woocommerce_payment_complete (fixes Autocomplete Orders / Subscriptions integrations)

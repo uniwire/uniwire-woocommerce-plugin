@@ -3,7 +3,7 @@
 	Plugin Name:  Uniwire Payment Gateway
 	Plugin URI:   https://uniwire.com/
 	Description:  A payment gateway that allows your customers to pay with cryptocurrency
-	Version:      0.8
+	Version:      0.9
 	Author:       Uniwire
 	License:      GPLv3+
 	License URI:  https://www.gnu.org/licenses/gpl-3.0.html
@@ -268,10 +268,13 @@
             <div class="">
                 <p>Uniwire ID:
 					<?php
-						$payment_path = 'public/payment/';
-						if (strpos(MERCHANT_SITE_URL, 'cryptochill') !== false) {
-							$payment_path = 'invoice/';
-						}
+						// Invoice pages live at <site>/invoice/<id>/, the same path the amount
+						// mismatch order note links to. That holds for the legacy domain some
+						// merchants still have configured too, since it 301s to the current one.
+						// This used to fall back to 'public/payment/' whenever the site URL did
+						// not carry the legacy brand name, but that path 404s on both domains,
+						// so every merchant on the current domain got a dead link.
+						$payment_path = 'invoice/';
 						//                        TODO check old plugin _merchant_payment_id
 					?>
                     <a target="_blank" href="<?php echo MERCHANT_SITE_URL . $payment_path . esc_html($order->get_meta('_merchant_payment_id')); ?>/"><?php echo esc_html($order->get_meta('_merchant_payment_id')); ?></a>

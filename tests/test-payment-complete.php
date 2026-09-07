@@ -20,7 +20,27 @@ if (!defined('ABSPATH')) {
 	exit;
 }
 
-$gateway = WC()->payment_gateways()->payment_gateways()['merchant_plugin'];
+// Resolve the gateway without hard-coding its id: the build process renames
+// 'merchant_plugin' to a provider-specific id, so look it up by capability.
+$gateway = null;
+foreach (WC()->payment_gateways()->payment_gateways() as $candidate) {
+	if (method_exists($candidate, '_update_order_status')) {
+		$gateway = $candidate;
+		break;
+	}
+}
+
+if (!$gateway) {
+	echo "FATAL: gateway with _update_order_status() not found — is the plugin active?\n";
+	if (class_exists('WP_CLI')) {
+		WP_CLI::halt(1);
+	}
+	return;
+}
+
+$gateway_id = $gateway->id;
+$GLOBALS['gateway_id'] = $gateway_id;
+echo "Gateway under test: {$gateway_id}\n";
 
 function tpc_create_order($total, $status, $currency = 'EUR') {
 	$order = wc_create_order();
@@ -31,7 +51,7 @@ function tpc_create_order($total, $status, $currency = 'EUR') {
 	$order->add_product($product);
 	$order->set_currency($currency);
 	$order->set_total($total);
-	$order->set_payment_method('merchant_plugin');
+	$order->set_payment_method($GLOBALS['gateway_id']);
 	$order->set_status($status);
 	$order->save();
 	return $order;

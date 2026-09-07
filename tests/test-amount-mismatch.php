@@ -32,7 +32,7 @@ function create_test_order($total, $currency = 'EUR') {
 	$order->add_product($product);
 	$order->set_currency($currency);
 	$order->set_total($total);
-	$order->set_payment_method('merchant_plugin');
+	$order->set_payment_method($GLOBALS['gateway_id']);
 	$order->set_status('pending');
 	$order->update_meta_data('_merchant_payment_id', 'test-invoice-' . $order->get_id());
 	$order->save();
@@ -54,7 +54,23 @@ function make_fake_invoice($amount, $currency = 'EUR') {
 }
 
 // Get gateway instance
-$gateway = WC()->payment_gateways()->payment_gateways()['merchant_plugin'];
+$gateway = null;
+foreach (WC()->payment_gateways()->payment_gateways() as $candidate) {
+	if (method_exists($candidate, '_update_order_status')) {
+		$gateway = $candidate;
+		break;
+	}
+}
+
+if (!$gateway) {
+	echo "FATAL: gateway with _update_order_status() not found — is the plugin active?\n";
+	if (class_exists('WP_CLI')) {
+		WP_CLI::halt(1);
+	}
+	return;
+}
+
+$GLOBALS['gateway_id'] = $gateway->id;
 
 $order_total    = 1267.65; // Real order total
 $attack_amount  = 1.00;    // Attacker-manipulated invoice amount
