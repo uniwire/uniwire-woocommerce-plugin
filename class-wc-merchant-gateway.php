@@ -15,6 +15,8 @@
 		exit;
 	}
 
+	require_once __DIR__ . '/includes/class-merchant-webhook-signature.php';
+
 	/**
 	 * WC_Uniwire_Gateway Class.
 	 */
@@ -343,7 +345,7 @@
 			} else {
 				$sdk_url = $merchant_static_url . 'static/js/sdk2.js';
 			}
-			wp_enqueue_script('wc_uniwire_gateway_sdk', $sdk_url, [], 0.9);
+			wp_enqueue_script('wc_uniwire_gateway_sdk', $sdk_url, [], 1.0);
 
 		}
 
@@ -657,7 +659,7 @@
 		{
 			$payload = file_get_contents('php://input');
 
-			self::log('Webhook received payload ' . print_r($payload, true));
+			self::log('Webhook received payload ' . Uniwire_Webhook_Signature::redact_payload($payload));
 
 			if (empty($payload)) {
 				self::log('Headers: ' . print_r([
@@ -674,30 +676,12 @@
 
 			$data = json_decode($payload, true);
 
-			// Handle SDK-initiated invoice update (from client JS onUpdate callback)
-			if (!empty($data['action']) && $data['action'] == 'update_invoice' && !empty($data['invoice_id'])) {
-				self::log('Received invoice update: ' . $data['invoice_id']);
-
-				$order_id = $data['order_id'] ?? null;
-				if (!$order_id) {
-					exit;
-				}
-
-				$order = wc_get_order($order_id);
-				if ($order) {
-					$payment_id = $order->get_meta('_merchant_payment_id');
-
-					if (empty($payment_id) || $data['invoice_id'] != $payment_id) {
-						$order->update_meta_data('_merchant_payment_id', $data['invoice_id']);
-						$order->save();
-						self::log('Update meta for order: ' . $order_id);
-					}
-
-					exit;
-				} else {
-					self::log('Failed to get order: ' . $order_id);
-				}
-
+			// Handle SDK-initiated invoice update (from client JS onUpdate callback).
+			// This request comes from the buyer's browser, so handle_invoice_update()
+			// accepts it only with the order key.
+			if (is_array($data) && ($data['action'] ?? null) === 'update_invoice') {
+				$result = $this->handle_invoice_update($data);
+				self::log('Invoice update: ' . $result, strpos($result, 'refused') === 0 ? 'warning' : 'info');
 				exit;
 			}
 
@@ -724,7 +708,7 @@
 			$status = $invoice['status'];
 			$passthrough = json_decode($invoice['passthrough'], true);
 
-			self::log('Webhook received event ' . $callback_status . ' | ' . $status . ' : ' . print_r($data, true));
+			self::log('Webhook received event ' . $callback_status . ' | ' . $status . ' : ' . print_r(Uniwire_Webhook_Signature::redact_data($data), true));
 
 			if (!isset($passthrough['order_id'])) {
 				self::log('Probably invoice not created by gateway.');
@@ -765,24 +749,121 @@
 		public function validate_webhook($payload)
 		{
 			self::log('Checking Webhook response');
-			$payload = json_decode($payload, true);
-			$callback_token = $this->get_option('callback_token');
 
-			# Get signature and callback_id fields from provided data
-			$signature = $payload['signature'];
-			$callback_id = $payload['callback_id'];
-			$sig = hash_hmac('SHA256', $callback_id, $callback_token);
+			// Only the signature headers are accepted. They sign the full raw body.
+			// The legacy "signature" field in the body is not used.
+			$timestamp = $_SERVER[Uniwire_Webhook_Signature::TIMESTAMP_SERVER_KEY] ?? null;
+			$signature = $_SERVER[Uniwire_Webhook_Signature::SIGNATURE_SERVER_KEY] ?? null;
+			$now = time();
+			$tolerance = Uniwire_Webhook_Signature::TOLERANCE;
 
-			# Compare signatures
-			$is_valid = hash_equals($sig, $signature);
-			self::log('Signature valid: ' . var_export($is_valid, true));
+			$result = Uniwire_Webhook_Signature::check(
+				$payload,
+				$timestamp,
+				$signature,
+				$this->get_option('callback_token'),
+				$now,
+				$tolerance
+			);
 
+			if (Uniwire_Webhook_Signature::OK === $result) {
+				self::log('Signature valid: true');
 
-			if ($is_valid) {
 				return true;
 			}
 
+			switch ($result) {
+				case Uniwire_Webhook_Signature::MISSING_TOKEN:
+					$detail = 'the API callback token is not configured in the gateway settings';
+					break;
+				case Uniwire_Webhook_Signature::MISSING_TIMESTAMP:
+					$detail = 'header ' . Uniwire_Webhook_Signature::TIMESTAMP_HEADER . ' is missing';
+					break;
+				case Uniwire_Webhook_Signature::MISSING_SIGNATURE:
+					$detail = 'header ' . Uniwire_Webhook_Signature::SIGNATURE_HEADER . ' is missing';
+					break;
+				case Uniwire_Webhook_Signature::BAD_TIMESTAMP:
+					$detail = 'header ' . Uniwire_Webhook_Signature::TIMESTAMP_HEADER . ' is not a unix timestamp';
+					break;
+				case Uniwire_Webhook_Signature::BAD_SIGNATURE:
+					$detail = 'header ' . Uniwire_Webhook_Signature::SIGNATURE_HEADER . ' has no ' . Uniwire_Webhook_Signature::SCHEME_PREFIX . ' value';
+					break;
+				case Uniwire_Webhook_Signature::OUTSIDE_WINDOW:
+					$detail = sprintf(
+						'timestamp outside the %d s window: callback time %s (%s), server time %d (%s), difference %d s; check the server clock',
+						$tolerance,
+						$timestamp,
+						gmdate('Y-m-d H:i:s', (int) $timestamp) . ' UTC',
+						$now,
+						gmdate('Y-m-d H:i:s', $now) . ' UTC',
+						$now - (int) $timestamp
+					);
+					break;
+				case Uniwire_Webhook_Signature::MISMATCH:
+					$detail = 'signature does not match the request body; check the API callback token';
+					break;
+				default:
+					$detail = 'unknown reason';
+			}
+
+			self::log('Webhook signature refused (' . $result . '): ' . $detail, 'warning');
+
 			return false;
+		}
+
+		/**
+		 * Store the invoice id that the checkout page reports for an order.
+		 *
+		 * The request comes from the buyer's browser. It is accepted only for an
+		 * order of this gateway that still waits for payment and only with that
+		 * order's key. check_orders() later polls the invoice status for the stored
+		 * id and applies it to the order.
+		 *
+		 * @param array $data Decoded request body.
+		 *
+		 * @return string Result for the log.
+		 */
+		public function handle_invoice_update($data): string
+		{
+			$order_id = $data['order_id'] ?? null;
+			$order_id = is_int($order_id) || (is_string($order_id) && ctype_digit($order_id)) ? (int) $order_id : 0;
+			$invoice_id = $data['invoice_id'] ?? null;
+			$order_key = $data['order_key'] ?? null;
+
+			if (!is_string($invoice_id) || !preg_match('/^[0-9a-fA-F-]{32,36}$/', $invoice_id)) {
+				return 'refused, invoice_id is not a UUID (order_id=' . $order_id . ')';
+			}
+
+			if (!$order_id) {
+				return 'refused, no valid order_id (invoice_id=' . $invoice_id . ')';
+			}
+
+			$order = wc_get_order($order_id);
+			if (!$order) {
+				return 'refused, order not found (order_id=' . $order_id . ')';
+			}
+
+			if (!is_string($order_key) || $order_key === '' || !hash_equals((string) $order->get_order_key(), $order_key)) {
+				return 'refused, order key missing or wrong (order_id=' . $order_id . ')';
+			}
+
+			if ($order->get_payment_method() !== $this->id) {
+				return 'refused, order is not paid with this gateway (order_id=' . $order_id . ')';
+			}
+
+			// The same statuses check_orders() polls.
+			if (!$order->has_status(['pending', 'blockchainpending'])) {
+				return 'refused, order does not wait for payment, status ' . $order->get_status() . ' (order_id=' . $order_id . ')';
+			}
+
+			if ($order->get_meta('_merchant_payment_id') === $invoice_id) {
+				return 'unchanged (order_id=' . $order_id . ', invoice_id=' . $invoice_id . ')';
+			}
+
+			$order->update_meta_data('_merchant_payment_id', $invoice_id);
+			$order->save();
+
+			return 'stored (order_id=' . $order_id . ', invoice_id=' . $invoice_id . ')';
 		}
 
 		/**

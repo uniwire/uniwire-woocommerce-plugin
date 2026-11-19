@@ -5,7 +5,12 @@ function onPaymentUpdate(data, code) {
         jQuery.ajax({
             method: 'POST',
             url: '/?wc-api=wc_uniwire_gateway',
-            data: JSON.stringify({action: 'update_invoice', invoice_id: data.payment.id, order_id: passthrough.order_id})
+            data: JSON.stringify({
+                action: 'update_invoice',
+                invoice_id: data.payment.id,
+                order_id: passthrough.order_id,
+                order_key: passthrough.order_key
+            })
         }).done(function () {
             // console.log('invoice updated')
         })

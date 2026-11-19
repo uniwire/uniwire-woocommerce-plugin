@@ -4,7 +4,7 @@ Tags: merchant, woo, woocommerce, ecommerce, bitcoin, litecoin, blockchain, comm
 Requires at least: 3.0
 Requires PHP: 5.6
 Tested up to: 5.2
-Stable tag: 0.9
+Stable tag: 1.0
 License: GPLv2 or later
 
 == Description ==
@@ -96,6 +96,14 @@ To use this plugin with your WooCommerce store you will need:
 
 
 == Changelog ==
+
+= 1.0 =
+* Security: callbacks are now verified with the X-Uniwire-Timestamp and X-Uniwire-Signature headers, which sign the full request body; callbacks without valid headers are refused
+* Note: the server clock must be correct; a callback is refused when its timestamp differs from the server time by more than 5 minutes
+* Note: the API callback token must be set in the plugin settings; the plugin needs it to verify callbacks
+* Security: more validation of the requests from the checkout page
+* Debug log: sensitive callback fields are masked
+* Test: add callback signature test (tests/test-webhook-signature.php) and invoice update test (tests/test-invoice-update.php)
 
 = 0.9 =
 * Fix: orders left unfinalised by an earlier release can now be repaired by re-sending the callback; the payment is completed once and the order is never moved backwards
